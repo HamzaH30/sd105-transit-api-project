@@ -23,7 +23,7 @@ function getStreets(streetName) {
   });
 }
 
-function renderHTML(streets) {
+function renderHTML(streets = []) {
   const streetsSect = document.querySelector("section.streets");
   streetsSect.innerHTML = "";
   streets.forEach((street) => {
@@ -38,3 +38,5 @@ document.querySelector("form").addEventListener("submit", (event) => {
   event.preventDefault();
   getStreets(event.target.children[0].value);
 });
+
+renderHTML();
