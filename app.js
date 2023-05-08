@@ -23,6 +23,79 @@ function getStreets(streetName) {
     });
 }
 
+async function fetchStops(streetKey) {
+  const stopsEndPoint = `${baseEndPoint}stops.json${api_endpoint}&street=${streetKey}`;
+  const response = await fetch(stopsEndPoint);
+  const data = response.json();
+  return data;
+}
+
+function getStops(streetKey) {
+  let stops = [];
+  fetchStops(streetKey)
+    .then((data) => {
+      data.stops.forEach((stop) => {
+        getStopSchedule(stop.key).then((value) => {
+          console.log(value);
+          stops.push({
+            name: stop.street.name,
+            crossStreet: stop["cross-street"].name,
+            key: stop.key,
+            schedule: 1,
+          });
+        });
+
+        // console.log(stops);
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
+
+function formatTime(time) {
+  const date = new Date(time);
+  let hours = date.getHours() % 12;
+  hours = hours === 0 ? 12 : hours;
+  const mins = date.getMinutes();
+  return `${hours}:${mins}`;
+}
+
+function getStopSchedule(busStop) {
+  return fetchStopSchedule(busStop)
+    .then((data) => {
+      // console.log(data);
+      let stopSchedule = [];
+      const routeSchedules = data["stop-schedule"]["route-schedules"];
+      for (let routeSchedule of routeSchedules) {
+        stopSchedule = getTimingsForRoute(routeSchedule, stopSchedule);
+      }
+
+      return stopSchedule;
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
+
+function getTimingsForRoute(routeSchedule, stopSchedule) {
+  const routeNum = routeSchedule.route.number;
+  for (let scheduledStop of routeSchedule["scheduled-stops"]) {
+    let busTime = scheduledStop.times.departure.estimated;
+    busTime = formatTime(busTime);
+    stopSchedule.push({ routeNum: routeNum, timeArrival: busTime });
+  }
+
+  return stopSchedule;
+}
+
+async function fetchStopSchedule(busStop) {
+  const stopScheduleEndPoint = `${baseEndPoint}stops/${busStop}/schedule.json?${api_endpoint}&max-results-per-route=2`;
+  const response = await fetch(stopScheduleEndPoint);
+  const data = response.json();
+  return data;
+}
+
 function renderHTML(streets = []) {
   const streetsSect = document.querySelector("section.streets");
   streetsSect.innerHTML = "";
@@ -50,3 +123,8 @@ document.querySelector("form").addEventListener("submit", (event) => {
 });
 
 // Listen for user clicks on street names
+document.querySelector("section.streets").addEventListener("click", (event) => {
+  if ("streetKey" in event.target.dataset) {
+    getStops(+event.target.dataset.streetKey);
+  }
+});
