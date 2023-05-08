@@ -23,6 +23,17 @@ function getStreets(streetName) {
   });
 }
 
+function renderHTML(streets) {
+  const streetsSect = document.querySelector("section.streets");
+  streetsSect.innerHTML = "";
+  streets.forEach((street) => {
+    streetsSect.insertAdjacentHTML(
+      "beforeend",
+      `<a href="#" data-street-key="${street.key}">${street.name}</a>`
+    );
+  });
+}
+
 document.querySelector("form").addEventListener("submit", (event) => {
   event.preventDefault();
   getStreets(event.target.children[0].value);
