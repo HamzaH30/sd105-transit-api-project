@@ -12,10 +12,12 @@ async function fetchStreets(streetName) {
   const streetEndPoint = `${baseEndPoint}streets.json${api_endpoint}&name=${streetName}`;
   const response = await fetch(streetEndPoint);
   const data = await response.json();
+  // Return the data about all the matching streets as JSON
   return data;
 }
 
 function getStreets(streetName) {
+  // Getting all the streets that have the same name as the one the user passed in
   fetchStreets(streetName)
     .then((data) => {
       renderStreetsHTML(data.streets);
@@ -25,10 +27,36 @@ function getStreets(streetName) {
     });
 }
 
+function renderStreetsHTML(streets = []) {
+  // Clear user input
+  document.querySelector("input").value = "";
+
+  const streetsSect = document.querySelector("section.streets");
+  streetsSect.innerHTML = "";
+
+  // If there are streets available to look at
+  if (streets.length > 0) {
+    // Add the HTML for each specific street
+    streets.forEach((street) => {
+      streetsSect.insertAdjacentHTML(
+        "beforeend",
+        `<a href="#" data-street-key="${street.key}">${street.name}</a>`
+      );
+    });
+  } else {
+    // There are no streets
+    streetsSect.insertAdjacentHTML(
+      "beforeend",
+      '<div class="no-results">No Streets found</div>'
+    );
+  }
+}
+
 async function fetchStops(streetKey) {
   const stopsEndPoint = `${baseEndPoint}stops.json${api_endpoint}&street=${streetKey}`;
   const response = await fetch(stopsEndPoint);
   const data = response.json();
+  // Return the data about all the stops on a specific street as JSON
   return data;
 }
 
@@ -47,11 +75,11 @@ function getStops(streetKey) {
       //       schedule: busSchedule,
       //     });
       //   });
-
       //   console.log(stops);
       // });
+
       const promisesOfAllBusStopSchedules = streetData.stops.map((busStop) => {
-        // For every stop, get its bus schedule
+        // For every stop, get its bus schedule (which bus is coming at what time at THIS specific bus stop)
         return getStopSchedule(busStop.key);
       });
 
@@ -82,6 +110,41 @@ function getStops(streetKey) {
     });
 }
 
+async function fetchStopSchedule(busStop) {
+  const stopScheduleEndPoint = `${baseEndPoint}stops/${busStop}/schedule.json?${api_endpoint}&max-results-per-route=2`;
+  const response = await fetch(stopScheduleEndPoint);
+  const data = response.json();
+
+  // Return a JSON of the timings of what bus is coming at what time to a specific bus stop
+  return data;
+}
+
+async function getStopSchedule(busStop) {
+  const data = await fetchStopSchedule(busStop);
+  let stopSchedule = [];
+  const routeSchedules = data["stop-schedule"]["route-schedules"];
+  for (let routeSchedule of routeSchedules) {
+    // Add the info about what route and its time to the collection about the schedule for each stop
+    stopSchedule = getTimingsForRoute(routeSchedule, stopSchedule);
+  }
+  return stopSchedule;
+}
+
+function getTimingsForRoute(routeSchedule, stopSchedule) {
+  const routeNum = routeSchedule.route.number;
+
+  for (let scheduledStop of routeSchedule["scheduled-stops"]) {
+    // routeSchedule["scheduled-stops"] is an array of MAX 2 objects.
+    // Each object (scheduledStop) is an object containing the info of when this bus will arrive/depart at a specific bus stop
+    let busTime = scheduledStop.times.departure.estimated;
+
+    // Add the info about what route and its time to the collection about the schedule for each stop
+    stopSchedule.push({ routeNum: routeNum, timeArrival: busTime });
+  }
+
+  return stopSchedule;
+}
+
 function sortByTime(busStopsInfo) {
   busStopsInfo.sort((x, y) => {
     const xDate = new Date(x.schedule.timeArrival);
@@ -99,53 +162,6 @@ function formatTime(time) {
     minute: "numeric",
     hour12: true,
   });
-}
-
-async function getStopSchedule(busStop) {
-  const data = await fetchStopSchedule(busStop);
-  let stopSchedule = [];
-  const routeSchedules = data["stop-schedule"]["route-schedules"];
-  for (let routeSchedule of routeSchedules) {
-    stopSchedule = getTimingsForRoute(routeSchedule, stopSchedule);
-  }
-  return stopSchedule;
-}
-
-function getTimingsForRoute(routeSchedule, stopSchedule) {
-  const routeNum = routeSchedule.route.number;
-  for (let scheduledStop of routeSchedule["scheduled-stops"]) {
-    let busTime = scheduledStop.times.departure.estimated;
-    // busTime = formatTime(busTime);
-    stopSchedule.push({ routeNum: routeNum, timeArrival: busTime });
-  }
-
-  return stopSchedule;
-}
-
-async function fetchStopSchedule(busStop) {
-  const stopScheduleEndPoint = `${baseEndPoint}stops/${busStop}/schedule.json?${api_endpoint}&max-results-per-route=2`;
-  const response = await fetch(stopScheduleEndPoint);
-  const data = response.json();
-  return data;
-}
-
-function renderStreetsHTML(streets = []) {
-  document.querySelector("input").value = "";
-  const streetsSect = document.querySelector("section.streets");
-  streetsSect.innerHTML = "";
-  if (streets.length > 0) {
-    streets.forEach((street) => {
-      streetsSect.insertAdjacentHTML(
-        "beforeend",
-        `<a href="#" data-street-key="${street.key}">${street.name}</a>`
-      );
-    });
-  } else {
-    streetsSect.insertAdjacentHTML(
-      "beforeend",
-      '<div class="no-results">No Streets found</div>'
-    );
-  }
 }
 
 function renderBusSchedulesHTML(busSchedule = [], street = "none") {
@@ -172,6 +188,7 @@ function renderBusSchedulesHTML(busSchedule = [], street = "none") {
   });
 }
 
+// Clear the displayed values
 renderStreetsHTML();
 renderBusSchedulesHTML();
 
