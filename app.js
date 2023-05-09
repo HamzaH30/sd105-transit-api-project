@@ -70,7 +70,7 @@ function getStops(streetKey) {
           });
         }
 
-        renderBusSchedules(busStopsInfo);
+        renderBusSchedulesHTML(busStopsInfo, stops[0].street.name);
       });
     })
     .catch((err) => {
@@ -80,10 +80,12 @@ function getStops(streetKey) {
 
 function formatTime(time) {
   const date = new Date(time);
-  let hours = date.getHours() % 12;
-  hours = hours === 0 ? 12 : hours;
-  const mins = date.getMinutes();
-  return `${hours}:${mins < 10 ? "0" : ""}${mins}`;
+
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "numeric",
+    hour12: true,
+  });
 }
 
 async function getStopSchedule(busStop) {
@@ -133,8 +135,14 @@ function renderStreetsHTML(streets = []) {
   }
 }
 
-function renderBusSchedules(busSchedule) {
+function renderBusSchedulesHTML(busSchedule = [], street = "none") {
   console.log(busSchedule);
+
+  // Update the "Displaying results for ..."
+  document.getElementById(
+    "street-name"
+  ).textContent = `Displaying results for ${street}`;
+
   const tBody = document.querySelector("tbody");
   tBody.innerHTML = "";
   busSchedule.forEach((busStop) => {
@@ -156,6 +164,7 @@ function renderBusSchedules(busSchedule) {
 }
 
 renderStreetsHTML();
+renderBusSchedulesHTML();
 
 // Listen for user input
 document.querySelector("form").addEventListener("submit", (event) => {
