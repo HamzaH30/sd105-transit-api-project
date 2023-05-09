@@ -1,10 +1,12 @@
+/**
+ * Name: Hamza Haque
+ * Date: May 8, 2023
+ * Project: Transit API Practice Project
+ */
+
 import { config } from "./config.js";
 const baseEndPoint = "https://api.winnipegtransit.com/v3/";
 const api_endpoint = `?api-key=${config.apiKey}`;
-
-// TODO:
-// Render with AM and PM
-// Sort by time
 
 async function fetchStreets(streetName) {
   const streetEndPoint = `${baseEndPoint}streets.json${api_endpoint}&name=${streetName}`;
@@ -60,22 +62,33 @@ function getStops(streetKey) {
 
         const stops = streetData.stops;
         for (let i = 0; i < stops.length; i++) {
-          // Create an array of objects containing only the necessary info about each stop and its schedule
-          busStopsInfo.push({
-            name: stops[i].name.split(" ").slice(1).join(" "),
-            crossStreet: stops[i]["cross-street"].name,
-            direction: stops[i].direction,
-            key: stops[i].key,
-            schedule: busSchedules[i],
-          });
+          for (let n = 0; n < busSchedules[i].length; n++) {
+            // Create an array of objects containing only the necessary info about each bus arriving at a stop
+            busStopsInfo.push({
+              name: stops[i].name.split(" ").slice(1).join(" "),
+              crossStreet: stops[i]["cross-street"].name,
+              direction: stops[i].direction,
+              key: stops[i].key,
+              schedule: busSchedules[i][n],
+            });
+          }
         }
 
-        renderBusSchedulesHTML(busStopsInfo, stops[0].street.name);
+        renderBusSchedulesHTML(sortByTime(busStopsInfo), stops[0].street.name);
       });
     })
     .catch((err) => {
       console.log(err);
     });
+}
+
+function sortByTime(busStopsInfo) {
+  busStopsInfo.sort((x, y) => {
+    const xDate = new Date(x.schedule.timeArrival);
+    const yDate = new Date(y.schedule.timeArrival);
+    return xDate - yDate;
+  });
+  return busStopsInfo;
 }
 
 function formatTime(time) {
@@ -102,7 +115,7 @@ function getTimingsForRoute(routeSchedule, stopSchedule) {
   const routeNum = routeSchedule.route.number;
   for (let scheduledStop of routeSchedule["scheduled-stops"]) {
     let busTime = scheduledStop.times.departure.estimated;
-    busTime = formatTime(busTime);
+    // busTime = formatTime(busTime);
     stopSchedule.push({ routeNum: routeNum, timeArrival: busTime });
   }
 
@@ -136,8 +149,6 @@ function renderStreetsHTML(streets = []) {
 }
 
 function renderBusSchedulesHTML(busSchedule = [], street = "none") {
-  console.log(busSchedule);
-
   // Update the "Displaying results for ..."
   document.getElementById(
     "street-name"
@@ -146,20 +157,18 @@ function renderBusSchedulesHTML(busSchedule = [], street = "none") {
   const tBody = document.querySelector("tbody");
   tBody.innerHTML = "";
   busSchedule.forEach((busStop) => {
-    busStop.schedule.forEach((busTime) => {
-      tBody.insertAdjacentHTML(
-        "beforeend",
-        `
-    <tr>
-      <td>${busStop.name}</td>
-      <td>${busStop.crossStreet}</td>
-      <td>${busStop.direction}</td>
-      <td>${busTime.routeNum}</td>
-      <td>${busTime.timeArrival}</td>
-    </tr>
-`
-      );
-    });
+    tBody.insertAdjacentHTML(
+      "beforeend",
+      `
+      <tr>
+        <td>${busStop.name}</td>
+        <td>${busStop.crossStreet}</td>
+        <td>${busStop.direction}</td>
+        <td>${busStop.schedule.routeNum}</td>
+        <td>${formatTime(busStop.schedule.timeArrival)}</td>
+      </tr>
+  `
+    );
   });
 }
 
