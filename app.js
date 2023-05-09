@@ -8,6 +8,12 @@ import { config } from "./config.js";
 const baseEndPoint = "https://api.winnipegtransit.com/v3/";
 const api_endpoint = `?api-key=${config.apiKey}`;
 
+// TODO
+// function getEndPoint(str, ...args) {
+//   return `${baseEndPoint}${str}?api-key=${config.apiKey}${args.join("&")}`;
+// }
+// getEndPoint("something", "street=something", "two arg", "three arg", "four arg")
+
 async function fetchStreets(streetName) {
   const streetEndPoint = `${baseEndPoint}streets.json${api_endpoint}&name=${streetName}`;
   const response = await fetch(streetEndPoint);
@@ -78,29 +84,45 @@ function getStops(streetKey) {
       //   console.log(stops);
       // });
 
+      // TODO Idea:
+      // const promises = streetData.stops.map(getStopScheduleMappingFunction);
+      // Handle key in the function
+      let counter = 0;
       const promisesOfAllBusStopSchedules = streetData.stops.map((busStop) => {
         // For every stop, get its bus schedule (which bus is coming at what time at THIS specific bus stop)
-        return getStopSchedule(busStop.key);
+        if (counter < 100) {
+          counter++;
+          return getStopSchedule(busStop.key);
+        }
       });
 
       // Once all the schedules have been fulfilled
       Promise.all(promisesOfAllBusStopSchedules).then((busSchedules) => {
         // Info about all bus stops
-        let busStopsInfo = [];
+        const busStopsInfo = [];
 
         const stops = streetData.stops;
-        for (let i = 0; i < stops.length; i++) {
-          for (let n = 0; n < busSchedules[i].length; n++) {
+        console.log(busSchedules[101]);
+        console.log(stops.length);
+        const maxLoops = Math.min(100, stops.length);
+        for (let i = 0; i < maxLoops; i++) {
+          for (let j = 0; j < busSchedules[i].length; j++) {
+            console.log(i);
             // Create an array of objects containing only the necessary info about each bus arriving at a stop
             busStopsInfo.push({
               name: stops[i].name.split(" ").slice(1).join(" "),
               crossStreet: stops[i]["cross-street"].name,
               direction: stops[i].direction,
               key: stops[i].key,
-              schedule: busSchedules[i][n],
+              schedule: busSchedules[i][j],
             });
+            // TODO: busStopsInfo.push(new BusStopInfo(stops[i]));
+            // Create a class containing the info being passed in the busStopsInfo array
           }
         }
+        // TODO: sortByTime(busStopsInfo) sort performs action on input array
+        // const displayText = stops[0].street.name
+        // renderBusSchedulesHTML(busStopsInfo, displayText)
 
         renderBusSchedulesHTML(sortByTime(busStopsInfo), stops[0].street.name);
       });
@@ -111,7 +133,7 @@ function getStops(streetKey) {
 }
 
 async function fetchStopSchedule(busStop) {
-  const stopScheduleEndPoint = `${baseEndPoint}stops/${busStop}/schedule.json?${api_endpoint}&max-results-per-route=2`;
+  const stopScheduleEndPoint = `${baseEndPoint}stops/${busStop}/schedule.json${api_endpoint}&max-results-per-route=2`;
   const response = await fetch(stopScheduleEndPoint);
   const data = response.json();
 
@@ -120,6 +142,7 @@ async function fetchStopSchedule(busStop) {
 }
 
 async function getStopSchedule(busStop) {
+  // TODO const data = await fetchStopSchedule(busStop.key);
   const data = await fetchStopSchedule(busStop);
   let stopSchedule = [];
   const routeSchedules = data["stop-schedule"]["route-schedules"];
@@ -195,6 +218,10 @@ renderBusSchedulesHTML();
 // Listen for user input
 document.querySelector("form").addEventListener("submit", (event) => {
   event.preventDefault();
+  // const fd = new FormData(event.target);
+  // TODO: the key is the name property of the input element
+  // getStreets(fd.get("street-search"));
+
   getStreets(event.target.children[0].value);
 });
 
